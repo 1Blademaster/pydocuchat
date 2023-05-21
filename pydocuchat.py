@@ -114,11 +114,18 @@ if __name__ == "__main__":
             if menu_choice == "Quit":
                 break
             elif menu_choice == "Query a document":
+                if not os.path.exists(PATH_TO_INDEXES):
+                    os.makedirs(PATH_TO_INDEXES)
+
                 dirs = [
                     d
                     for d in os.listdir(PATH_TO_INDEXES)
                     if os.path.isdir(os.path.join(PATH_TO_INDEXES, d))
                 ]
+                if len(dirs) == 0:
+                    print("No PDFs were found")
+                    continue
+
                 query_doc_questions = [
                     inquirer.List(
                         "query_doc_choice",
@@ -178,7 +185,7 @@ if __name__ == "__main__":
                         print("Added your PDF")
                 else:
                     with spinner:
-                        save_pdf(add_doc_answer)
+                        save_pdf(add_doc_choice)
                     print("Added your PDF")
     except KeyboardInterrupt:
         print("\033[0m")

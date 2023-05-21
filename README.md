@@ -14,9 +14,9 @@ Ask questions to your PDF documents using OpenAI's GPT-3.5-turbo.
 
 ### Adding the OpenAI API key
 
-Create a `.env` file by using `mv .example.env .env`, then inside the environment file, you can add your OpenAI API key which you can get from [here](https://platform.openai.com/account/api-keys). **DO NOT SHARE YOUR API KEY WITH ANYONE**.
+Create a `.env` file by using `cp .example.env .env`, then inside the environment file, you can add your OpenAI API key which you can get from [here](https://platform.openai.com/account/api-keys). **DO NOT SHARE YOUR API KEY WITH ANYONE**.
 
-Note: in order to ask more than 3 questions a minute, you will have to create a billing account with OpenAI. This can be done on the same dashboard where you obtained your API key from.
+Note: In order to ask more than 3 questions a minute, you will have to create a billing account with OpenAI. This can be done on the same dashboard where you obtained your API key from. You may get rate-limited within 48 hours of setting up the billing account, however after the first 48 hours everything should be fine.
 
 ## Usage
 
