@@ -2,6 +2,8 @@
 
 Ask questions to your PDF documents using OpenAI's GPT-3.5-turbo.
 
+![Example](https://raw.githubusercontent.com/1Blademaster/pydocuchat/main/example.gif)
+
 ## Installation
 
 ### Setting up the code
