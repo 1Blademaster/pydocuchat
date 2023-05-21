@@ -52,7 +52,7 @@ def pdf_to_index(pdf_path, save_path):
     documents = loader.load_data(file=Path(pdf_path))
     index = GPTVectorStoreIndex.from_documents(documents)
     index.storage_context.persist(persist_dir=save_path)
-    print("Saved PDF index to disk")
+    print("\033[0;32mSaved PDF index to disk\033[0m")
 
 
 # query index using GPT
@@ -62,7 +62,7 @@ def query_index(query_u, pdf_name):
         "---------------------\n"
         "{context_str}"
         "\n---------------------\n"
-        "Given this information, please answer the question as concisely as possible: {query_str}\n"
+        "Given this information above, please answer the question clearly but as concisely as possible: {query_str}\n"
     )
     QA_PROMPT = QuestionAnswerPrompt(QA_PROMPT_TMPL)
 
@@ -72,15 +72,11 @@ def query_index(query_u, pdf_name):
     index = load_index_from_storage(storage_context, service_context=service_context)
     query_engine = index.as_query_engine(streaming=True, text_qa_template=QA_PROMPT)
     response = query_engine.query(query_u)
-    # response.print_response_stream()
 
     return response
 
 
 def save_pdf(file_path, absolute=False):
-    if not os.path.exists(PATH_TO_INDEXES):
-        os.makedirs(PATH_TO_INDEXES)
-
     _, file_name = os.path.split(file_path)
 
     if absolute:
@@ -95,6 +91,11 @@ def save_pdf(file_path, absolute=False):
 
 
 if __name__ == "__main__":
+    if not os.path.exists(PATH_TO_INDEXES):
+        os.makedirs(PATH_TO_INDEXES)
+    if not os.path.exists(PATH_TO_PDFS):
+        os.makedirs(PATH_TO_PDFS)
+
     try:
         while True:
             menu_questions = [
@@ -114,16 +115,13 @@ if __name__ == "__main__":
             if menu_choice == "Quit":
                 break
             elif menu_choice == "Query a document":
-                if not os.path.exists(PATH_TO_INDEXES):
-                    os.makedirs(PATH_TO_INDEXES)
-
                 dirs = [
                     d
                     for d in os.listdir(PATH_TO_INDEXES)
                     if os.path.isdir(os.path.join(PATH_TO_INDEXES, d))
                 ]
                 if len(dirs) == 0:
-                    print("No PDFs were found")
+                    print("\033[0;31mNo PDFs were found\033[0m")
                     continue
 
                 query_doc_questions = [
@@ -152,9 +150,9 @@ if __name__ == "__main__":
                     with spinner:
                         res = query_index(query_u=query, pdf_name=query_doc_choice)
 
-                    print("\033[0;36m")
+                    print("\033[0;36m", end="")
                     res.print_response_stream()
-                    print("\033[0m")
+                    print("\033[0m\n")
             elif menu_choice == "Add a new document":
                 docs = glob(os.path.join(PATH_TO_PDFS, "*.pdf"))
                 docs.insert(0, "Enter the path to a PDF")
@@ -178,7 +176,7 @@ if __name__ == "__main__":
                     ).get("doc_path")
 
                     if not os.path.isfile(doc_path):
-                        print("Unable to find the document.")
+                        print("\033[0;31mUnable to find the document.\033[0m")
                     else:
                         with spinner:
                             save_pdf(doc_path, absolute=True)
