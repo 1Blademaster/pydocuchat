@@ -163,5 +163,5 @@ cython_debug/
 pdfs/
 gpt_indexes/
 
-# Julian is epic and cool (ignore these)
-foundations.pdf
+# Ignore all .pdfs the user may of added (for security)
+*.pdf
