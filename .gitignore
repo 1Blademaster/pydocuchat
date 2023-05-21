@@ -162,3 +162,6 @@ cython_debug/
 .vscode/
 pdfs/
 gpt_indexes/
+
+# Julian is epic and cool (ignore these)
+foundations.pdf
