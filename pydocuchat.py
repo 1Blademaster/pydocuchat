@@ -20,7 +20,6 @@ with spinner:
     logging.getLogger().setLevel(logging.WARNING)
 
     import sys
-    import traceback
 
     import inquirer
     from llama_index import (
@@ -189,6 +188,6 @@ if __name__ == "__main__":
         print("\033[0m")
         sys.exit()
     except Exception as e:
-        traceback.print_exc()
+        raise e
     finally:
         print("\033[0m")
