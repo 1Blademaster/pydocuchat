@@ -160,6 +160,10 @@ cython_debug/
 #.idea/
 
 .vscode/
+
+# macOS system files
+.DS_Store
+
 pdfs/
 gpt_indexes/
 
