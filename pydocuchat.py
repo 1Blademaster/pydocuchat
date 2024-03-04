@@ -12,33 +12,23 @@ spinner = yaspin(Spinners.dots, color="blue")
 with spinner:
     from dotenv import load_dotenv
 
-    # Remove error message from missing azure.core import
-    logging.getLogger().setLevel(logging.ERROR)
-
-    from langchain.chat_models import ChatOpenAI
-
-    logging.getLogger().setLevel(logging.WARNING)
-
     import sys
 
     import inquirer
-    from llama_index import (
-        GPTVectorStoreIndex,
-        LLMPredictor,
-        ServiceContext,
-        StorageContext,
-        download_loader,
-        load_index_from_storage,
-        QuestionAnswerPrompt,
-    )
-    from llama_index.prompts.default_prompts import DEFAULT_REFINE_PROMPT
+
+    from llama_index.llms.openai import OpenAI
+    from llama_index.core import Settings
+    from llama_index.core import StorageContext
+    from llama_index.core import VectorStoreIndex
+    from llama_index.core import SimpleDirectoryReader
+    from llama_index.core import PromptTemplate
+    from llama_index.core import load_index_from_storage
+
+    from llama_index.core.prompts.default_prompts import DEFAULT_REFINE_PROMPT
 
 load_dotenv()
 
-llm_predictor = LLMPredictor(
-    llm=ChatOpenAI(temperature=0, model_name="gpt-3.5-turbo", streaming=True)
-)
-service_context = ServiceContext.from_defaults(llm_predictor=llm_predictor)
+Settings.llm = OpenAI(model="gpt-3.5-turbo")
 
 PATH_TO_PDFS = "pdfs"
 PATH_TO_INDEXES = "gpt_indexes"
@@ -46,11 +36,11 @@ PATH_TO_INDEXES = "gpt_indexes"
 
 # build index from PDF
 def pdf_to_index(pdf_path, save_path):
-    PDFReader = download_loader("PDFReader")
-    loader = PDFReader()
-    documents = loader.load_data(file=Path(pdf_path))
-    index = GPTVectorStoreIndex.from_documents(documents)
+    documents = SimpleDirectoryReader(input_files=[Path(pdf_path)]).load_data()
+
+    index = VectorStoreIndex.from_documents(documents)
     index.storage_context.persist(persist_dir=save_path)
+
     print("\033[0;32mSaved PDF index to disk\033[0m")
 
 
@@ -63,12 +53,10 @@ def query_index(query_u, pdf_name):
         "\n---------------------\n"
         "Given this information above, please answer the question clearly but as concisely as possible: {query_str}\n"
     )
-    QA_PROMPT = QuestionAnswerPrompt(QA_PROMPT_TMPL)
+    QA_PROMPT = PromptTemplate(QA_PROMPT_TMPL)
 
-    storage_context = StorageContext.from_defaults(
-        persist_dir=f"{PATH_TO_INDEXES}/{pdf_name}"
-    )
-    index = load_index_from_storage(storage_context, service_context=service_context)
+    storage_context = StorageContext.from_defaults(persist_dir=f"{PATH_TO_INDEXES}/{pdf_name}")
+    index = load_index_from_storage(storage_context)
     query_engine = index.as_query_engine(streaming=True, text_qa_template=QA_PROMPT)
     response = query_engine.query(query_u)
 
