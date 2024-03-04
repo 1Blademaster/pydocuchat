@@ -34,8 +34,14 @@ PATH_TO_PDFS = "pdfs"
 PATH_TO_INDEXES = "gpt_indexes"
 
 
-# build index from PDF
 def pdf_to_index(pdf_path, save_path):
+    """
+    Converts a PDF document into an index for querying.
+
+    Args:
+        pdf_path (str): The file path to the PDF document.
+        save_path (str): The directory path where the index should be saved.
+    """
     documents = SimpleDirectoryReader(input_files=[Path(pdf_path)]).load_data()
 
     index = VectorStoreIndex.from_documents(documents)
@@ -44,8 +50,14 @@ def pdf_to_index(pdf_path, save_path):
     print("\033[0;32mSaved PDF index to disk\033[0m")
 
 
-# query index using GPT
 def query_index(query_u, pdf_name):
+    """
+    Queries an existing index with a user's prompt.
+
+    Args:
+        query_u (str): The user's query or question.
+        pdf_name (str): The name of the PDF document's index to query.
+    """
     QA_PROMPT_TMPL = (
         "We have provided context information below. \n"
         "---------------------\n"
@@ -64,6 +76,15 @@ def query_index(query_u, pdf_name):
 
 
 def save_pdf(file_path, absolute=False):
+    """
+    Saves a PDF document by converting it into an index.
+
+    Args:
+        file_path (str): The file path to the PDF document.
+        absolute (bool, optional): If True, uses the absolute path provided in file_path. 
+                                   If False, assumes the file is located in the predefined PDFs directory. 
+                                   Defaults to False.
+    """
     _, file_name = os.path.split(file_path)
 
     if absolute:
@@ -77,105 +98,194 @@ def save_pdf(file_path, absolute=False):
         )
 
 
-if __name__ == "__main__":
-    if not os.path.exists(PATH_TO_INDEXES):
-        os.makedirs(PATH_TO_INDEXES)
-    if not os.path.exists(PATH_TO_PDFS):
-        os.makedirs(PATH_TO_PDFS)
+def setup_directories(directories):
+    """
+    Ensures that the necessary directories for storing PDFs and their indexes exist.
+    If they do not exist, the function creates them.
+    """
+    for directory in directories:
+        if not os.path.exists(directory):
+            os.makedirs(directory)
+
+
+def prompt_main_menu():
+    """
+    Displays the main menu to the user and prompts them to choose an action.
+    The actions include querying a document, adding a new document, or quitting the application.
+    Returns the user's choice.
+    """
+    menu_questions = [
+        inquirer.List(
+            "menu_choice",
+            message="What would you like to do?",
+            choices=["Query a document", "Add a new document", "Quit"],
+            carousel=True,
+        ),
+    ]
+    menu_answers = inquirer.prompt(menu_questions, raise_keyboard_interrupt=True)
+    return menu_answers.get("menu_choice")
+
+
+def handle_document_query():
+    """
+    Handles the user's request to query a document.
+    It prompts the user to select a document from the available indexes and then 
+    processes the user's queries against the selected document.
+    """
+    dirs = get_index_directories()
+    if not dirs:
+        print("\033[0;31mNo PDFs were found\033[0m")
+        return
+
+    query_doc_choice = prompt_document_selection(dirs)
+    process_queries(query_doc_choice)
+
+
+def get_index_directories():
+    """
+    Retrieves a list of directories that contain indexed documents.
+    This list is used to present the user with the available documents for querying.
+    Returns a list of directory names.
+    """
+    return [
+        d for d in os.listdir(PATH_TO_INDEXES)
+        if os.path.isdir(os.path.join(PATH_TO_INDEXES, d))
+    ]
+
+
+def prompt_document_selection(dirs):
+    """
+    Prompts the user to select a document from the given list of directories.
+    Args:
+        dirs: A list of directory names containing indexed documents.
+    Returns the name of the selected document directory.
+    """
+    query_doc_questions = [
+        inquirer.List(
+            "query_doc_choice",
+            message="Select a document to query",
+            choices=dirs,
+            carousel=True,
+        ),
+    ]
+    query_doc_answer = inquirer.prompt(query_doc_questions, raise_keyboard_interrupt=True)
+    return query_doc_answer.get("query_doc_choice")
+
+
+def process_queries(pdf_name):
+    """
+    Processes user queries against the selected document's index.
+    Continuously prompts the user for queries until they decide to exit.
+    Args:
+        pdf_name: The name of the PDF document to query.
+    """
+    while True:
+        query = input("\033[0;33m> ")
+        print("\033[0m", end="")
+        if query == "exit":
+            break
+        elif not query.strip():
+            continue
+        with spinner:
+            res = query_index(query_u=query, pdf_name=pdf_name)
+        print_response(res)
+
+
+def print_response(response):
+    """
+    Prints the response of a query to the console.
+    Args:
+        response: The response object containing the answer to a query.
+    """
+    print("\033[0;36m", end="")
+    response.print_response_stream()
+    print("\033[0m\n")
+
+
+def handle_document_addition():
+    """
+    Handles the user's request to add a new document to the index.
+    It prompts the user to select a PDF document or enter a path to a PDF, 
+    then indexes the document.
+    """
+    add_doc_choice = prompt_document_addition()
+    if add_doc_choice == "Enter the path to a PDF":
+        handle_custom_pdf_path()
+    else:
+        with spinner:
+            save_pdf(add_doc_choice)
+        print("Added your PDF")
+
+
+def prompt_document_addition():
+    """
+    Prompts the user to select a document to add to the index or to enter a path to a PDF document.
+    Args:
+        docs: A list of documents available for addition, including an option to enter a path.
+    Returns the user's choice.
+    """
+    docs = glob(os.path.join(PATH_TO_PDFS, "*.pdf"))
+    docs.insert(0, "Enter the path to a PDF")
+    add_doc_questions = [
+        inquirer.List(
+            "add_doc_choice",
+            message="Select a document to add",
+            choices=docs,
+            carousel=True,
+        ),
+    ]
+    add_doc_answer = inquirer.prompt(add_doc_questions, raise_keyboard_interrupt=True)
+    return add_doc_answer.get("add_doc_choice")
+
+
+def handle_custom_pdf_path():
+    """
+    Handles the case where the user chooses to enter a custom path to a PDF document for indexing.
+    Prompts the user for the path, validates it, and then proceeds to index the document if valid.
+    """
+    doc_path = inquirer.prompt(
+        [inquirer.Path("doc_path")], raise_keyboard_interrupt=True
+    ).get("doc_path")
+    if not os.path.isfile(doc_path):
+        print("\033[0;31mUnable to find the document.\033[0m")
+    else:
+        with spinner:
+            save_pdf(doc_path, absolute=True)
+        print("Added your PDF")
+
+
+def handle_exit():
+    """
+    Handles the user's request to exit the application.
+    Performs any necessary cleanup before exiting.
+    """
+    print("\033[0m")
+    sys.exit()
+
+
+def main():
+    """
+    The main entry point of the application.
+    It sets up the necessary directories, 
+    then enters a loop to prompt the user with the main menu and 
+    handle their choices until they decide to exit.
+    """
+    setup_directories([PATH_TO_INDEXES, PATH_TO_PDFS])
 
     try:
         while True:
-            menu_questions = [
-                inquirer.List(
-                    "menu_choice",
-                    message="What would you like to do?",
-                    choices=["Query a document", "Add a new document", "Quit"],
-                    carousel=True,
-                ),
-            ]
-
-            menu_answers = inquirer.prompt(
-                menu_questions, raise_keyboard_interrupt=True
-            )
-            menu_choice = menu_answers.get("menu_choice")
-
+            menu_choice = prompt_main_menu()
             if menu_choice == "Quit":
                 break
             elif menu_choice == "Query a document":
-                dirs = [
-                    d
-                    for d in os.listdir(PATH_TO_INDEXES)
-                    if os.path.isdir(os.path.join(PATH_TO_INDEXES, d))
-                ]
-                if len(dirs) == 0:
-                    print("\033[0;31mNo PDFs were found\033[0m")
-                    continue
-
-                query_doc_questions = [
-                    inquirer.List(
-                        "query_doc_choice",
-                        message="Select a document to query",
-                        choices=dirs,
-                        carousel=True,
-                    ),
-                ]
-
-                query_doc_answer = inquirer.prompt(
-                    query_doc_questions, raise_keyboard_interrupt=True
-                )
-                query_doc_choice = query_doc_answer.get("query_doc_choice")
-
-                while True:
-                    query = input("\033[0;33m> ")
-                    print("\033[0m", end="")
-
-                    if query == "exit":
-                        break
-                    elif not query or not query.strip():
-                        continue
-
-                    with spinner:
-                        res = query_index(query_u=query, pdf_name=query_doc_choice)
-
-                    print("\033[0;36m", end="")
-                    res.print_response_stream()
-                    print("\033[0m\n")
+                handle_document_query()
             elif menu_choice == "Add a new document":
-                docs = glob(os.path.join(PATH_TO_PDFS, "*.pdf"))
-                docs.insert(0, "Enter the path to a PDF")
-                add_doc_questions = [
-                    inquirer.List(
-                        "add_doc_choice",
-                        message="Select a document to add",
-                        choices=docs,
-                        carousel=True,
-                    ),
-                ]
-
-                add_doc_answer = inquirer.prompt(
-                    add_doc_questions, raise_keyboard_interrupt=True
-                )
-                add_doc_choice = add_doc_answer.get("add_doc_choice")
-
-                if add_doc_choice == "Enter the path to a PDF":
-                    doc_path = inquirer.prompt(
-                        [inquirer.Path("doc_path")], raise_keyboard_interrupt=True
-                    ).get("doc_path")
-
-                    if not os.path.isfile(doc_path):
-                        print("\033[0;31mUnable to find the document.\033[0m")
-                    else:
-                        with spinner:
-                            save_pdf(doc_path, absolute=True)
-                        print("Added your PDF")
-                else:
-                    with spinner:
-                        save_pdf(add_doc_choice)
-                    print("Added your PDF")
+                handle_document_addition()
     except KeyboardInterrupt:
-        print("\033[0m")
-        sys.exit()
+        handle_exit()
     except Exception as e:
         raise e
-    finally:
-        print("\033[0m")
+
+
+if __name__ == "__main__":
+    main()
